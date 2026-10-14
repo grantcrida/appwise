@@ -1,0 +1,45 @@
+name: Build AppWise APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Extract AppWise project
+        run: |
+          unzip -o AppWise_Android_Buildable.zip -d appwise_source
+          find appwise_source -maxdepth 4 -type f | head -100
+
+      - name: Check for Gradle project
+        run: |
+          if ! find appwise_source -name gradlew -type f | grep -q .; then
+            echo "ERROR: No Gradle wrapper found in ZIP."
+            echo "The ZIP may not contain a complete Android project."
+            exit 1
+          fi
+
+      - name: Build APK
+        run: |
+          GRADLEW=$(find appwise_source -name gradlew -type f | head -1)
+          cd "$(dirname "$GRADLEW")"
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppWise-APK
+          path: appwise_source/**/build/outputs/apk/**/*.apk
